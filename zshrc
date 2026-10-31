@@ -91,7 +91,7 @@ zplugin-load() {
 	if [[ ! -e "$init" ]]; then
 		initfiles=("$dir"/*.{plugin.zsh,zsh-theme,zsh,sh}(N))
 
-		if ((!$#initfiles)); then
+		if ((! $#initfiles)); then
 			print -u2 "No loadable file found for $repo"
 			return 1
 		fi
@@ -171,7 +171,7 @@ fi
 tty_name=$(tty)
 tty_name=${tty_name#/dev/}
 
-theme="ash-full"
+theme="oblong"
 
 case "$theme" in
 p10k)
@@ -200,6 +200,13 @@ gruvbox)
 
 	PROMPT="${gruv_blue}%~ ${gruv_orange}\$(git_branch)${gruv_reset}
 ${gruv_green}❯ ${gruv_reset}"
+	;;
+oblong | obolong)
+	VIRTUAL_ENV_DISABLE_PROMPT=1
+	setopt nopromptbang prompt{cr,percent,sp,subst}
+	PS1='%(?:%F{white}:%F{red})◼ ${VIRTUAL_ENV:+"(${VIRTUAL_ENV:t}) "}%(!:%F{red}:%F{white})%n%f:$(_prompt_oblong_pwd)$(_prompt_oblong_git)%f%(!:#:$) '
+	PROMPT="$PS1"
+	RPS1='%(?::%F{red}$?)'
 	;;
 *)
 	PROMPT="${fg_light}%n${nc} in ${blue_soft}%~${nc}${white}\$(git_branch)\$(go_version) ${prompt_symbol} "
@@ -297,8 +304,16 @@ else
 	export MANPAGER="less"
 fi
 
+export LS_COLORS='no=00:fi=00:di=00;34:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.avi=01;35:*.fli=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.ogg=01;35:*.mp3=01;35:*.wav=01;35:*.xml=00;31:'
 export TIMEFMT=$'\nreal\t%E\nuser\t%U\nsys\t%S\ncpu\t%P'
 # export TZ=''
+export LESS_TERMCAP_mb=$'\E[01;31m'
+export LESS_TERMCAP_md=$'\E[01;31m'
+export LESS_TERMCAP_me=$'\E[0m'
+export LESS_TERMCAP_se=$'\E[0m'
+export LESS_TERMCAP_so=$'\E[01;44;33m'
+export LESS_TERMCAP_ue=$'\E[0m'
+export LESS_TERMCAP_us=$'\E[01;32m'
 
 mkdir -p \
 	"$XDG_CONFIG_HOME" \
@@ -348,12 +363,34 @@ fi
 # Functions
 # =========================
 
-mk() { mkdir -p nmap content creds misc exploits scripts; }
+mk() { mkdir -p nmap content creds misc exploits scripts vpn; }
 
 git_branch() {
 	local branch
 	branch=$(git branch --show-current 2>/dev/null)
 	[[ -n $branch ]] && printf " %s" "$branch"
+}
+
+_prompt_oblong_pwd() {
+	local git_root current_dir
+	if git_root=$(command git rev-parse --show-toplevel 2>/dev/null); then
+		current_dir="${PWD#${git_root:h}/}"
+	else
+		current_dir=${(%):-%~}
+	fi
+	print -n "%F{blue}${current_dir}%f"
+}
+
+_prompt_oblong_git() {
+	local branch dirty clean
+	branch=$(git branch --show-current 2>/dev/null)
+	[[ -z $branch ]] && return
+	if git diff --quiet --ignore-submodules HEAD 2>/dev/null; then
+		clean="%F{green} ◍ "
+	else
+		dirty="%F{red} ◍ "
+	fi
+	print -n " %F{white}${branch}${clean}${dirty}%f"
 }
 
 vf() {
